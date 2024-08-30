@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'dart:html';
+
 Dio dio = Dio();
 
 Future<void> main() async {
@@ -125,28 +126,55 @@ List<Map<String, dynamic>> playlists = [];
 String selectlist = '';
 String selectlistname = '';
 String opt = '覆盖现有';
+bool selectcreateorcol = true;
 int selectmid = 0;
 String selectmidname = '';
 bool isLoaded = false;
 bool b1 = false;
 var cookie = '';
 var bilibiliData = {};
+var bilibiliData2 = [];
 Future<String> fetchBilibiliData() async {
   b1 = false;
   // final url = 'https://api.bilibili.com/x/v3/fav/folder/list4navigate';
-  // final url = 'http://192.168.31.84:8888/test';
-  final url = 'https://b2l.040905.xyz/test';
+  // String url = 'http://192.168.31.84:8888/test';
+  String url = 'https://b2l.040905.xyz/test';
   var headers = {
     'content-type': 'application/json',
     'coo': cookie,
   };
-  
+
   try {
     print(headers);
     final response = await Dio().get(url, options: Options(headers: headers));
     print(response.statusCode);
     print(response.data);
     bilibiliData = response.data;
+    // url = 'http://192.168.31.84:8888/test1';
+    url = 'https://b2l.040905.xyz/test1';
+    // http://192.168.31.84:8888/test1?pn=1&ps=20&up_mid=329020925&platform=web
+    // buvid3=2E53FCF7-DDBC-0AF0-2711-04C3C861A73129068infoc; SESSDATA=8b32066e%2C1740563528%2C6a350%2A81CjCBfwm_peWfk-hJ9bD8eeXdMA6VcOvtiRZ4HP4mdA_om3csi1-GM9AnTEmbu5244dYSVkh1T2JKc083SHJZMzVqZlJQME43U0hQZy0xXzM2Q3hEOUhfY2Y0bVBkWVoyMjZDT2dFU05YS3RWWXJ2YmZ4ZEdPZVBTWXo2M3NsWjNzc0lsNjg4dVF3IIEC; bili_jct=f971a1e75b31f198a365a8ffeee95fdc; DedeUserID=329020925; DedeUserID__ckMd5=4e06cdb3faeabccd; sid=8gk3dj7l
+    String up_mid = cookie.split('DedeUserID=')[1].split(';')[0];
+    String turl = url + '?pn=1&ps=20&up_mid=' + up_mid + '&platform=web';
+    var response2 = await Dio().get(turl);
+    var res2 = response2.data;
+    bilibiliData2.clear();
+    res2['data']['list'].forEach((element) {
+      bilibiliData2.add(element);
+    });
+    if (res2['data']['has_more']) {
+      var pn = 2;
+      do {
+        turl = url + '?pn=$pn&ps=20&up_mid=' + up_mid + '&platform=web';
+        response2 =
+            await dio.get(turl, options: Options(headers: {'cookie': cookie}));
+        res2 = response2.data;
+        res2['data']['list'].forEach((element) {
+          bilibiliData2.add(element);
+        });
+        pn++;
+      } while (res2['data']['has_more']);
+    }
     return ''; // 请求成功，返回空字符串
   } on DioException catch (e) {
     print('请求失败: ${e.message}');
@@ -172,77 +200,167 @@ Future<String> getbllistdata() async {
   if (selectmid == 0) {
     return '未选择B站收藏夹';
   }
-  var url =
-      'https://b2l.040905.xyz/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
-  var turl = url + 'pn=1&media_id=' + selectmid.toString();
-  final headers = {
-    'content-type': 'application/json',
-    'coo': cookie,
-  };
-  var medias = [];
-  try {
-    // print(headers);
-    var response = await Dio().get(turl, options: Options(headers: headers));
-    // print(response.statusCode);
-    // print(response.data);
-    var res = response.data;
-    print('转码成功');
-    res["data"]['medias'].forEach((element) {
-      medias.add(element);
-    });
-    if (res["data"]['has_more']) {
-      var pn = 2;
-      do {
-        turl = url + 'pn=$pn&media_id=' + selectmid.toString();
-        response =
-            await dio.get(turl, options: Options(headers: {'cookie': cookie}));
-        // res = jsonDecode(response.data);
-        res = response.data;
-        res["data"]['medias'].forEach((element) {
-          medias.add(element);
-        });
-        pn++;
-      } while (res["data"]['has_more']);
+  if (selectcreateorcol) {
+    var url =
+        'https://b2l.040905.xyz/test3?pn=1&ps=20&season_id=';
+        // 'http://192.168.31.84:8888/test3?pn=1&ps=20&season_id=';
+    var turl = url + selectmid.toString();
+    final headers = {
+      'content-type': 'application/json',
+    };
+    var medias = [];
+    try {
+      // print(headers);
+      var response = await Dio().get(turl, options: Options(headers: headers));
+      // print(response.statusCode);
+      // print(response.data);
+      var res = response.data;
+      print('转码成功');
+      res["data"]['medias'].forEach((element) {
+        medias.add(element);
+      });
+      if (medias.length == res["data"]['info']['media_count']) {
+        var tlist = globalconfig[selectlist]["tracks"];
+        if (opt == '覆盖现有') {
+          medias.forEach((element) {
+            var temp = {
+              "id": "bitrack_v_" + element['bvid'],
+              "title": element['title'],
+              "artist": element['upper']['name'],
+              "artist_id": "biartist_v_" + element['upper']['mid'].toString(),
+              "source": "bilibili",
+              "source_url": "https://www.bilibili.com/" + element['bvid'],
+              "img_url": element['cover'],
+              "sourceName": "哔哩",
+              "disabled": false,
+              "playNow": false,
+              "platform": "bilibili",
+              "platformText": "哔哩"
+            };
+            var flag = false;
+            for (var i = 0; i < tlist.length; i++) {
+              if (tlist[i]['id'] == temp['id']) {
+                tlist[i] = temp;
+                flag = true;
+                break;
+              }
+            }
+            if (!flag) {
+              tlist.add(temp);
+            }
+          });
+        } else if (opt == '加到末尾') {
+          medias.forEach((element) {
+            var temp = {
+              "id": "bitrack_v_" + element['bvid'],
+              "title": element['title'],
+              "artist": element['upper']['name'],
+              "artist_id": "biartist_v_" + element['upper']['mid'].toString(),
+              "source": "bilibili",
+              "source_url": "https://www.bilibili.com/" + element['bvid'],
+              "img_url": element['cover'],
+              "sourceName": "哔哩",
+              "disabled": false,
+              "playNow": false,
+              "platform": "bilibili",
+              "platformText": "哔哩"
+            };
+            tlist.add(temp);
+          });
+        }
+        globalconfig[selectlist]["tracks"] = tlist;
+        return '';
+      } else {
+        return '获取失败';
+      }
+    } on DioException catch (e) {
+      print('请求失败: ${e.message}');
+      if (e.response != null) {
+        print('响应数据: ${e.response?.data}');
+        print('响应头: ${e.response?.headers}');
+        print('请求信息: ${e.response?.requestOptions}');
+      } else {
+        print('请求未发送: ${e.requestOptions}');
+        print('错误信息: ${e.message}');
+      }
+      return '请求失败: ${e.message}'; // 请求失败，返回错误信息
+    } catch (e) {
+      print('未知错误: $e');
+      return '未知错误: $e'; // 请求失败，返回错误信息
     }
-    if (medias.length == res["data"]['info']['media_count']) {
-      var t = {
-        "id": 1905501752,
-        "type": 2,
-        "title": "【洛天依V3+V4+V5原创曲】再生【阿良良木健】",
-        "cover":
-            "http://i2.hdslb.com/bfs/archive/bbb1092c2c16bebd664fc8590acdf82f29c3fbce.jpg",
-        "intro":
-            "在第12个生日到来的一个月前\n在这缤纷的「再生之夏」揭幕之时\n尘封两年 《再生》姗姗来迟\n\n这首歌的投稿 完全是出于意外\n但我想 也是时候了\n是时候 让更多的人听到这一首\n由三个时空 三种音色 三代的洛天依 共同吟唱的旋律\n也希望 带给你们 不止三倍的感动\n愿我们缤纷的梦 能永远「再生」\n\n原曲收录自2022年起点计划出品\n中文VOCALOID同人原创专辑《拾》BV1Gv4y1K7hG\n\n（间奏选取自Johann Pachelbel所作《Canon in D》）\n\n作词：@St_色太  \n作曲·编曲·调校",
-        "page": 1,
-        "duration": 253,
-        "upper": {
-          "mid": 112428,
-          "name": "阿良良木健",
-          "face":
-              "https://i0.hdslb.com/bfs/face/da441327b01b8ca98b97496f0a3e67431cd19a8f.jpg"
-        },
-        "attr": 0,
-        "cnt_info": {
-          "collect": 13678,
-          "play": 147610,
-          "danmaku": 490,
-          "vt": 0,
-          "play_switch": 0,
-          "reply": 0,
-          "view_text_1": "14.8万"
-        },
-        "link": "bilibili://video/1905501752",
-        "ctime": 1718118342,
-        "pubtime": 1718118342,
-        "fav_time": 1718204781,
-        "bv_id": "BV1SS411K7Dx",
-        "bvid": "BV1SS411K7Dx",
-        "season": null,
-        "ogv": null,
-        "ugc": {"first_cid": 1578747690},
-        "media_list_link":
-            "bilibili://music/playlist/playpage/3178913425?page_type=3&oid=1905501752&otype=2"
-      };
+  } else {
+    var url =
+        'https://b2l.040905.xyz/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
+        // 'http://192.168.31.84:8888/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
+    var turl = url + 'pn=1&media_id=' + selectmid.toString();
+    final headers = {
+      'content-type': 'application/json',
+      'coo': cookie,
+    };
+    var medias = [];
+    try {
+      // print(headers);
+      var response = await Dio().get(turl, options: Options(headers: headers));
+      // print(response.statusCode);
+      // print(response.data);
+      var res = response.data;
+      print('转码成功');
+      res["data"]['medias'].forEach((element) {
+        medias.add(element);
+      });
+      if (res["data"]['has_more']) {
+        var pn = 2;
+        do {
+          turl = url + 'pn=$pn&media_id=' + selectmid.toString();
+          response = await dio.get(turl,
+              options: Options(headers: {'cookie': cookie}));
+          // res = jsonDecode(response.data);
+          res = response.data;
+          res["data"]['medias'].forEach((element) {
+            medias.add(element);
+          });
+          pn++;
+        } while (res["data"]['has_more']);
+      }
+      if (medias.length == res["data"]['info']['media_count']) {
+        var t = {
+          "id": 1905501752,
+          "type": 2,
+          "title": "【洛天依V3+V4+V5原创曲】再生【阿良良木健】",
+          "cover":
+              "http://i2.hdslb.com/bfs/archive/bbb1092c2c16bebd664fc8590acdf82f29c3fbce.jpg",
+          "intro":
+              "在第12个生日到来的一个月前\n在这缤纷的「再生之夏」揭幕之时\n尘封两年 《再生》姗姗来迟\n\n这首歌的投稿 完全是出于意外\n但我想 也是时候了\n是时候 让更多的人听到这一首\n由三个时空 三种音色 三代的洛天依 共同吟唱的旋律\n也希望 带给你们 不止三倍的感动\n愿我们缤纷的梦 能永远「再生」\n\n原曲收录自2022年起点计划出品\n中文VOCALOID同人原创专辑《拾》BV1Gv4y1K7hG\n\n（间奏选取自Johann Pachelbel所作《Canon in D》）\n\n作词：@St_色太  \n作曲·编曲·调校",
+          "page": 1,
+          "duration": 253,
+          "upper": {
+            "mid": 112428,
+            "name": "阿良良木健",
+            "face":
+                "https://i0.hdslb.com/bfs/face/da441327b01b8ca98b97496f0a3e67431cd19a8f.jpg"
+          },
+          "attr": 0,
+          "cnt_info": {
+            "collect": 13678,
+            "play": 147610,
+            "danmaku": 490,
+            "vt": 0,
+            "play_switch": 0,
+            "reply": 0,
+            "view_text_1": "14.8万"
+          },
+          "link": "bilibili://video/1905501752",
+          "ctime": 1718118342,
+          "pubtime": 1718118342,
+          "fav_time": 1718204781,
+          "bv_id": "BV1SS411K7Dx",
+          "bvid": "BV1SS411K7Dx",
+          "season": null,
+          "ogv": null,
+          "ugc": {"first_cid": 1578747690},
+          "media_list_link":
+              "bilibili://music/playlist/playpage/3178913425?page_type=3&oid=1905501752&otype=2"
+        };
 //           import json
 // with open('input.json','r',encoding='utf-8') as f:
 //     data=json.load(f)
@@ -265,73 +383,74 @@ Future<String> getbllistdata() async {
 //     output.append(temp)
 // with open('output.txt','w',encoding='utf-8') as f:
 //     json.dump(output,f,ensure_ascii=False,indent=4)
-      var tlist = globalconfig[selectlist]["tracks"];
-      if (opt == '覆盖现有') {
-        medias.forEach((element) {
-          var temp = {
-            "id": "bitrack_v_" + element['bvid'],
-            "title": element['title'],
-            "artist": element['upper']['name'],
-            "artist_id": "biartist_v_" + element['upper']['mid'].toString(),
-            "source": "bilibili",
-            "source_url": "https://www.bilibili.com/" + element['bvid'],
-            "img_url": element['cover'],
-            "sourceName": "哔哩",
-            "disabled": false,
-            "playNow": false,
-            "platform": "bilibili",
-            "platformText": "哔哩"
-          };
-          var flag = false;
-          for (var i = 0; i < tlist.length; i++) {
-            if (tlist[i]['id'] == temp['id']) {
-              tlist[i] = temp;
-              flag = true;
-              break;
+        var tlist = globalconfig[selectlist]["tracks"];
+        if (opt == '覆盖现有') {
+          medias.forEach((element) {
+            var temp = {
+              "id": "bitrack_v_" + element['bvid'],
+              "title": element['title'],
+              "artist": element['upper']['name'],
+              "artist_id": "biartist_v_" + element['upper']['mid'].toString(),
+              "source": "bilibili",
+              "source_url": "https://www.bilibili.com/" + element['bvid'],
+              "img_url": element['cover'],
+              "sourceName": "哔哩",
+              "disabled": false,
+              "playNow": false,
+              "platform": "bilibili",
+              "platformText": "哔哩"
+            };
+            var flag = false;
+            for (var i = 0; i < tlist.length; i++) {
+              if (tlist[i]['id'] == temp['id']) {
+                tlist[i] = temp;
+                flag = true;
+                break;
+              }
             }
-          }
-          if (!flag) {
+            if (!flag) {
+              tlist.add(temp);
+            }
+          });
+        } else if (opt == '加到末尾') {
+          medias.forEach((element) {
+            var temp = {
+              "id": "bitrack_v_" + element['bvid'],
+              "title": element['title'],
+              "artist": element['upper']['name'],
+              "artist_id": "biartist_v_" + element['upper']['mid'].toString(),
+              "source": "bilibili",
+              "source_url": "https://www.bilibili.com/" + element['bvid'],
+              "img_url": element['cover'],
+              "sourceName": "哔哩",
+              "disabled": false,
+              "playNow": false,
+              "platform": "bilibili",
+              "platformText": "哔哩"
+            };
             tlist.add(temp);
-          }
-        });
-      } else if (opt == '加到末尾') {
-        medias.forEach((element) {
-          var temp = {
-            "id": "bitrack_v_" + element['bvid'],
-            "title": element['title'],
-            "artist": element['upper']['name'],
-            "artist_id": "biartist_v_" + element['upper']['mid'].toString(),
-            "source": "bilibili",
-            "source_url": "https://www.bilibili.com/" + element['bvid'],
-            "img_url": element['cover'],
-            "sourceName": "哔哩",
-            "disabled": false,
-            "playNow": false,
-            "platform": "bilibili",
-            "platformText": "哔哩"
-          };
-          tlist.add(temp);
-        });
+          });
+        }
+        globalconfig[selectlist]["tracks"] = tlist;
+        return '';
+      } else {
+        return '获取失败';
       }
-      globalconfig[selectlist]["tracks"] = tlist;
-      return '';
-    } else {
-      return '获取失败';
+    } on DioException catch (e) {
+      print('请求失败: ${e.message}');
+      if (e.response != null) {
+        print('响应数据: ${e.response?.data}');
+        print('响应头: ${e.response?.headers}');
+        print('请求信息: ${e.response?.requestOptions}');
+      } else {
+        print('请求未发送: ${e.requestOptions}');
+        print('错误信息: ${e.message}');
+      }
+      return '请求失败: ${e.message}'; // 请求失败，返回错误信息
+    } catch (e) {
+      print('未知错误: $e');
+      return '未知错误: $e'; // 请求失败，返回错误信息
     }
-  } on DioException catch (e) {
-    print('请求失败: ${e.message}');
-    if (e.response != null) {
-      print('响应数据: ${e.response?.data}');
-      print('响应头: ${e.response?.headers}');
-      print('请求信息: ${e.response?.requestOptions}');
-    } else {
-      print('请求未发送: ${e.requestOptions}');
-      print('错误信息: ${e.message}');
-    }
-    return '请求失败: ${e.message}'; // 请求失败，返回错误信息
-  } catch (e) {
-    print('未知错误: $e');
-    return '未知错误: $e'; // 请求失败，返回错误信息
   }
 }
 
@@ -359,8 +478,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           try {
-            String ok=await downloadJsonFile();
-            if(ok!=''){
+            String ok = await downloadJsonFile();
+            if (ok != '') {
               throw ok;
             }
             // 弹出提示信息
@@ -606,20 +725,36 @@ class TakePictureScreenState extends State<TakePictureScreen> {
                       child: SingleChildScrollView(
                         child: Column(
                           children: b1
-                              ? (bilibiliData["data"][0]["mediaListResponse"]
-                                      ["list"] as List)
-                                  .map<Widget>((playlist) {
-                                  return ListTile(
-                                    title: Text(playlist['title'],
-                                        style: TextStyle(fontSize: 20)),
-                                    onTap: () {
-                                      setState(() {
-                                        selectmid = playlist['id'];
-                                        selectmidname = playlist['title'];
-                                      });
-                                    },
-                                  );
-                                }).toList()
+                              ? [
+                                  ...(bilibiliData["data"][0]
+                                          ["mediaListResponse"]["list"] as List)
+                                      .map<Widget>((playlist) {
+                                    return ListTile(
+                                      title: Text(playlist['title'],
+                                          style: TextStyle(fontSize: 20)),
+                                      onTap: () {
+                                        setState(() {
+                                          selectcreateorcol = false;
+                                          selectmid = playlist['id'];
+                                          selectmidname = playlist['title'];
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                  ...bilibiliData2.map<Widget>((playlist) {
+                                    return ListTile(
+                                      title: Text(playlist['title'],
+                                          style: TextStyle(fontSize: 20)),
+                                      onTap: () {
+                                        setState(() {
+                                          selectcreateorcol = true;
+                                          selectmid = playlist['id'];
+                                          selectmidname = playlist['title'];
+                                        });
+                                      },
+                                    );
+                                  }).toList(),
+                                ]
                               : [Text('请先查询B站歌单')],
                         ),
                       ),
