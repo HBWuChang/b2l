@@ -8,6 +8,8 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'dart:html';
 
+const bool test = false;
+
 Dio dio = Dio();
 
 Future<void> main() async {
@@ -137,8 +139,12 @@ var bilibiliData2 = [];
 Future<String> fetchBilibiliData() async {
   b1 = false;
   // final url = 'https://api.bilibili.com/x/v3/fav/folder/list4navigate';
-  // String url = 'http://192.168.31.84:8888/test';
-  String url = 'https://b2l.040905.xyz/test';
+  String url = '';
+  if (test) {
+    url = 'http://192.168.31.84:8888/test';
+  } else {
+    url = 'https://b2l.040905.xyz/test';
+  }
   var headers = {
     'content-type': 'application/json',
     'coo': cookie,
@@ -150,13 +156,16 @@ Future<String> fetchBilibiliData() async {
     print(response.statusCode);
     print(response.data);
     bilibiliData = response.data;
-    // url = 'http://192.168.31.84:8888/test1';
-    url = 'https://b2l.040905.xyz/test1';
+    if (test) {
+      url = 'http://192.168.31.84:8888/test1';
+    } else {
+      url = 'https://b2l.040905.xyz/test1';
+    }
     // http://192.168.31.84:8888/test1?pn=1&ps=20&up_mid=329020925&platform=web
     // buvid3=2E53FCF7-DDBC-0AF0-2711-04C3C861A73129068infoc; SESSDATA=8b32066e%2C1740563528%2C6a350%2A81CjCBfwm_peWfk-hJ9bD8eeXdMA6VcOvtiRZ4HP4mdA_om3csi1-GM9AnTEmbu5244dYSVkh1T2JKc083SHJZMzVqZlJQME43U0hQZy0xXzM2Q3hEOUhfY2Y0bVBkWVoyMjZDT2dFU05YS3RWWXJ2YmZ4ZEdPZVBTWXo2M3NsWjNzc0lsNjg4dVF3IIEC; bili_jct=f971a1e75b31f198a365a8ffeee95fdc; DedeUserID=329020925; DedeUserID__ckMd5=4e06cdb3faeabccd; sid=8gk3dj7l
     String up_mid = cookie.split('DedeUserID=')[1].split(';')[0];
     String turl = url + '?pn=1&ps=20&up_mid=' + up_mid + '&platform=web';
-    var response2 = await Dio().get(turl);
+    var response2 = await Dio().get(turl, options: Options(headers: headers));
     var res2 = response2.data;
     bilibiliData2.clear();
     res2['data']['list'].forEach((element) {
@@ -166,8 +175,7 @@ Future<String> fetchBilibiliData() async {
       var pn = 2;
       do {
         turl = url + '?pn=$pn&ps=20&up_mid=' + up_mid + '&platform=web';
-        response2 =
-            await dio.get(turl, options: Options(headers: {'cookie': cookie}));
+        response2 = await dio.get(turl, options: Options(headers: headers));
         res2 = response2.data;
         res2['data']['list'].forEach((element) {
           bilibiliData2.add(element);
@@ -201,12 +209,16 @@ Future<String> getbllistdata() async {
     return '未选择B站收藏夹';
   }
   if (selectcreateorcol) {
-    var url =
-        'https://b2l.040905.xyz/test3?pn=1&ps=20&season_id=';
-        // 'http://192.168.31.84:8888/test3?pn=1&ps=20&season_id=';
+    var url = '';
+    if (test) {
+      url = 'http://192.168.31.84:8888/test3?pn=1&ps=20&season_id=';
+    } else {
+      url = 'https://b2l.040905.xyz/test3?pn=1&ps=20&season_id=';
+    }
     var turl = url + selectmid.toString();
     final headers = {
       'content-type': 'application/json',
+      'coo': cookie,
     };
     var medias = [];
     try {
@@ -289,9 +301,14 @@ Future<String> getbllistdata() async {
       return '未知错误: $e'; // 请求失败，返回错误信息
     }
   } else {
-    var url =
-        'https://b2l.040905.xyz/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
-        // 'http://192.168.31.84:8888/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
+    var url = '';
+    if (test) {
+      url =
+          'http://192.168.31.84:8888/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
+    } else {
+      url =
+          'https://b2l.040905.xyz/test2?ps=20&keyword&order=mtime&type=0&tid=0&platform=web&';
+    }
     var turl = url + 'pn=1&media_id=' + selectmid.toString();
     final headers = {
       'content-type': 'application/json',
@@ -312,8 +329,7 @@ Future<String> getbllistdata() async {
         var pn = 2;
         do {
           turl = url + 'pn=$pn&media_id=' + selectmid.toString();
-          response = await dio.get(turl,
-              options: Options(headers: {'cookie': cookie}));
+          response = await dio.get(turl, options: Options(headers: headers));
           // res = jsonDecode(response.data);
           res = response.data;
           res["data"]['medias'].forEach((element) {
